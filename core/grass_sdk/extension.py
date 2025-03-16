@@ -61,10 +61,9 @@ class GrassWs:
                 ssl=False
             )
 
-            text = await response.text()
-
             if response.status == 201:
                 try:
+                    text = await response.text()
                     try:
                         data = json.loads(text)
                     except json.JSONDecodeError as e:
@@ -82,7 +81,7 @@ class GrassWs:
                     print(f"Error processing response: {e}, response: {text}")
                     raise ProxyError(f"Error processing response: {e}")
             else:
-                print(f"Failed to get connection info: {response.status}, response: {text}")
+                print(f"Failed to get connection info: {response.status}")
                 raise ProxyError(f"Failed to get connection info: {response.status}")
 
         except Exception as e:
