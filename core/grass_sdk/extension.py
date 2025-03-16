@@ -1,226 +1,156 @@
 import asyncio
-import json
-import time
-from base64 import b64decode, b64encode
-from random import choice
+import ctypes
+import os
+import random
+import sys
+import traceback
+
 import aiohttp
-from aiohttp import WSMsgType
-import uuid
+from art import text2art
+from termcolor import colored, cprint
+from fake_useragent import UserAgent
 
 from better_proxy import Proxy
 
-from core.utils.exception import WebsocketClosedException, ProxyForbiddenException, ProxyError
+from core import Grass
+from core.autoreger import AutoReger
+from core.utils import logger, file_to_list
+from core.utils.accounts_db import AccountsDB
+from core.utils.exception import LoginException
+from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, THREADS, \
+    CLAIM_REWARDS_ONLY, MINING_MODE, \
+    PROXY_DB_PATH, MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, \
+    SHOW_LOGS_RARELY, NODE_TYPE
 
-import os, base64
-
-from data.config import NODE_TYPE, USE_WSS
+ua = UserAgent(platforms=['desktop'])
 
 
-class GrassWs:
-    def __init__(self, user_agent: str = None, proxy: str = None):
-        self.user_agent = user_agent
-        self.proxy = proxy
-        self.destination = None
-        self.token = None
-        self.session = None
-        self.websocket = None
-        self.id = None
-        self.last_live_timestamp = time.time()  # Для отслеживания "живости"
-        # self.ws_session = None
+def bot_info(name: str = ""):
+    cprint(text2art(name), 'green')
 
-    async def get_addr(self, browser_id: str, user_id: str):
-        message = {
-            "browserId": browser_id,
-            "userId": user_id,
-            "version": "5.1.1",
-            "extensionId": "lkbnfiajjmbhnfledhphioinpickokdi",
-            "userAgent": self.user_agent,
-            "deviceType": "extension"
-        }
+    # if sys.platform == 'win32':
+    # ctypes.windll.kernel32.SetConsoleTitleW(f"{name}")
 
-        headers = {
-            'Connection': 'keep-alive',
-            'User-Agent': self.user_agent,
-            'Content-Type': 'application/json',
-            'Accept': '*/*',
-            'Origin': 'chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Storage-Access': 'active',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Accept-Language': 'en-US;q=0.8,en;q=0.7',
-        }
+    print(
+        f"{colored('Public script / Not for sale', color='light_red')}\n"
+        f"{colored('Паблик скрипт / Не для продажи', color='light_red')}\n"
+        f"{colored('sourse EnJoYeR mod by TellBip', color='light_yellow')} "
+        f"{colored('https://t.me/+b0BPbs7V1aE2NDFi', color='light_green')}"
+    )
 
-        try:
-            response = await self.session.post(
-                'https://director.getgrass.io/checkin',
-                json=message,
-                headers=headers,
-                proxy=self.proxy,
-                ssl=False
-            )
 
-            if response.status == 201:
-                try:
-                    text = await response.text()
-                    try:
-                        data = json.loads(text)
-                    except json.JSONDecodeError as e:
-                        print(f"Received non-JSON response: {text}")
-                        raise ProxyError(f"Received non-JSON response: {text}")
+async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None):
+    try:
+        email, password = account.split(":")[:2]
+    except ValueError:
+        logger.error(f"{_id} | Invalid account format: {account}. Should be email:password")
+        return False
 
-                    self.destination = data.get('destinations')[0] if data.get('destinations') else None
-                    self.token = data.get('token')
+    grass = None
+    # local_db = None
 
-                    if not self.destination:
-                        raise ProxyError("No destination received")
+    try:
+        # Создаем локальную копию базы данных для каждого воркера
+        # local_db = AccountsDB(PROXY_DB_PATH)
+        # await local_db.connect()
 
-                    return self.destination, self.token
-                except Exception as e:
-                    print(f"Error processing response: {e}, response: {text}")
-                    raise ProxyError(f"Error processing response: {e}")
-            else:
-                print(f"Failed to get connection info: {response.status}")
-                raise ProxyError(f"Failed to get connection info: {response.status}")
+        # user_agent = UserAgent(os=['windows', 'macos', 'linux'])
+        # user_agent = user_agent.chrome
 
-        except Exception as e:
-            print(f"Error getting connection info: {type(e).__name__}: {e}")
-            raise ProxyError(f"Error getting connection info: {type(e).__name__}: {e}")
+        user_agent = str(ua.chrome)
 
-    async def connect(self):
+        grass = Grass(
+            _id=_id,
+            email=email,
+            password=password,
+            proxy=proxy,
+            db=db,
+            user_agent=user_agent
+        )
 
-        protocol = "wss" if USE_WSS else "ws"
-        uri = f"{protocol}://{self.destination}/?token={self.token}"
+        if MINING_MODE:
+            await asyncio.sleep(random.uniform(1, 2) * _id)
+            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
+        else:
+            await asyncio.sleep(random.uniform(1, 3))
+            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
-        random_bytes = os.urandom(16)
-        sec_websocket_key = base64.b64encode(random_bytes).decode('utf-8')
-        # Извлекаем хост из destination
+        if CLAIM_REWARDS_ONLY:
+            await grass.claim_rewards()
+        else:
+            await grass.start()
 
-        # Точный набор заголовков как в Charles
-        headers = {
-            'Host': self.destination,
-            'Connection': 'Upgrade',
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache',
-            'User-Agent': self.user_agent,
-            'Upgrade': 'websocket',
-            'Origin': 'chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi',
-            'Sec-WebSocket-Version': '13',
-            'Accept-Encoding': 'gzip, deflate',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Sec-WebSocket-Key': sec_websocket_key,
-            'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
-            'Accept': ''  # Устанавливаем пустое значение
-        }
+        return True
+    except LoginException as e:
+        logger.warning(f"{_id} | {e}")
+    except aiohttp.ClientError as e:
+        logger.warning(f"{_id} | Some connection error: {e}...")
+    except Exception as e:
+        logger.error(f"{_id} | not handled exception | error: {e} {traceback.format_exc()}")
+    finally:
+        if grass:
+            await grass.session.close()
 
-        try:
-            self.websocket = await self.session.ws_connect(
-                uri,
-                headers=headers,
-                proxy=self.proxy,
-                ssl=USE_WSS  # Используем SSL только для WSS
-            )
 
-        except Exception as e:
-            if 'status' in dir(e) and e.status == 403:
-                raise ProxyForbiddenException(f"Low proxy score. Can't connect. Error: {e}")
-            raise e
+async def main():
+    accounts = file_to_list(ACCOUNTS_FILE_PATH)
 
-    async def send_message(self, message):
-        await self.websocket.send_str(message)
+    if not accounts:
+        logger.warning("No accounts found!")
+        return
 
-    async def receive_message(self):
-        msg = await self.websocket.receive()
-        if msg.type == WSMsgType.CLOSED:
-            raise WebsocketClosedException(f"Websocket closed: {msg}")
-        self.last_live_timestamp = time.time()  # Обновляем при любом сообщении
-        return json.loads(msg.data)
+    proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
 
-    async def get_connection_id(self):
-        return await self.receive_message()
+    #### delete DB if it exists to clean up
+    try:
+        if os.path.exists(PROXY_DB_PATH):
+            os.remove(PROXY_DB_PATH)
+    except PermissionError:
+        logger.warning(f"Cannot remove {PROXY_DB_PATH}, file is in use")
 
-    async def action_extension(self, browser_id: str, user_id: str):
-        # Получаем сообщение от сервера
-        received_message = await self.get_connection_id()
-        message_id = received_message.get("id")
-        action = received_message.get("action")
-        data = received_message.get("data", {})
-        url = data.get("url", "")
+    db = AccountsDB(PROXY_DB_PATH)
+    await db.connect()
 
-        # print(f"connection_id: {message_id}")
-        # print(f"action: {action}")
-        # print(f"data: {data}")
+    for i, account in enumerate(accounts):
+        email = account.split(":")[0]
+        proxy = proxies[i] if len(proxies) > i else None
 
-        if action == "HTTP_REQUEST":
-            result = await self.perform_http_request(data)
+        if await db.proxies_exist(proxy) or not proxy:
+            continue
 
-            response = {
-                "id": message_id,
-                "origin_action": action,
-                "result": result
-            }
-            response_str = json.dumps(response, separators=(',', ':'))  # Удаляем лишние пробелы
-            # print(f"[WEBSOCKET] Sent response: {json.dumps(response, indent=2)}")
-            await self.send_message(response_str)
-        elif action == "PONG":
-            response = {
-                "id": message_id,
-                "origin_action": action
-            }
-            response_str = json.dumps(response, separators=(',', ':'))  # Удаляем лишние пробелы
-            # print(f"[WEBSOCKET] Received PONG, sending response: {json.dumps(response, indent=2)}")
-            await self.send_message(response_str)
+        await db.add_account(email, proxy)
 
-    async def perform_http_request(self, params: dict) -> dict:
-        headers = params.get("headers", {})
-        method = params.get("method", "GET")
-        url = params["url"]
-        body = params.get("body")
+    await db.delete_all_from_extra_proxies()
+    await db.push_extra_proxies(proxies[len(accounts):])
 
-        try:
-            async with self.session.request(
-                    method=method,
-                    url=url,
-                    headers=headers,
-                    data=body,
-                    proxy=self.proxy,
-                    ssl=False
-            ) as response:
-                # Получаем статус и заголовки
-                status = response.status
-                status_text = response.reason
-                headers_dict = dict(response.headers)
+    autoreger = AutoReger.get_accounts(
+        (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH),
+        with_id=True,
+        static_extra=(db,)
+    )
 
-                # Получаем тело ответа и кодируем в base64
-                body_bytes = await response.read()
-                body_base64 = b64encode(body_bytes).decode('utf-8')
+    threads = THREADS
 
-                return {
-                    "url": str(response.url),
-                    "status": status,
-                    "status_text": status_text,
-                    "headers": headers_dict,
-                    "body": body_base64
-                }
-        except Exception as e:
-            print(f"Error occurred while performing fetch: {e}")
-            return {
-                "url": url,
-                "status": 400,
-                "status_text": "Bad Request",
-                "headers": {},
-                "body": ""
-            }
+    if CLAIM_REWARDS_ONLY:
+        msg = "__CLAIM__ MODE"
+    else:
+        msg = "__MINING__ MODE"
+        threads = len(autoreger.accounts)
 
-    async def send_ping(self):
-        message = {
-            "id": str(uuid.uuid4()),
-            "version": "1.0.0",
-            "action": "PING",
-            "data": {}
-        }
-        message_str = json.dumps(message, separators=(',', ':'))  # Удаляем лишние пробелы
-        # print(f"[WEBSOCKET] Sent PING at {time.strftime('%H:%M:%S')}")
-        await self.send_message(message_str)
+    logger.info(msg)
 
+    await autoreger.start(worker_task, threads)
+
+    await db.close_connection()
+
+
+if __name__ == "__main__":
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        bot_info("GRASS 5.1.1")
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main())
+    else:
+        bot_info("GRASS 5.1.1")
+        asyncio.run(main())
