@@ -78,10 +78,10 @@ class GrassWs:
 
                     return self.destination, self.token
                 except Exception as e:
-                    print(f"Error processing response: {e}, response: {text}")
+                    print(f"Error processing response: {e}, response: {response.status}")
                     raise ProxyError(f"Error processing response: {e}")
             else:
-                print(f"Failed to get connection info: {response.status}, response: {text}")
+                print(f"Failed to get connection info: {response.status}")
                 raise ProxyError(f"Failed to get connection info: {response.status}")
 
         except Exception as e:
