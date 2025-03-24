@@ -17,6 +17,7 @@ from core.autoreger import AutoReger
 from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
 from core.utils.exception import LoginException
+from core.utils.file_manager import remove_duplicate_accounts, str_to_file
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, THREADS, \
     CLAIM_REWARDS_ONLY, MINING_MODE, \
     PROXY_DB_PATH, MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, \
@@ -147,6 +148,28 @@ async def main():
         logger.warning("No accounts found!")
         return
 
+    # Если выбран режим Claim rewards, удаляем дубликаты аккаунтов
+    if CLAIM_REWARDS_ONLY:
+        original_count = len(accounts)
+        accounts = remove_duplicate_accounts(accounts)
+        unique_count = len(accounts)
+
+        if original_count != unique_count:
+            logger.info(
+                f"Removed {original_count - unique_count} duplicate accounts. Processing {unique_count} unique accounts.")
+
+            # Создаем временный файл с уникальными аккаунтами для AutoReger
+            temp_accounts_file = ACCOUNTS_FILE_PATH + ".temp"
+            with open(temp_accounts_file, 'w') as f:
+                for account in accounts:
+                    f.write(f"{account}\n")
+
+            accounts_file_for_autoreger = temp_accounts_file
+        else:
+            accounts_file_for_autoreger = ACCOUNTS_FILE_PATH
+    else:
+        accounts_file_for_autoreger = ACCOUNTS_FILE_PATH
+
     proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
 
     #### delete DB if it exists to clean up
@@ -172,10 +195,17 @@ async def main():
     await db.push_extra_proxies(proxies[len(accounts):])
 
     autoreger = AutoReger.get_accounts(
-        (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH),
+        (accounts_file_for_autoreger, PROXIES_FILE_PATH),
         with_id=True,
         static_extra=(db,)
     )
+
+    # Удаляем временный файл, если он был создан
+    if CLAIM_REWARDS_ONLY and original_count != unique_count:
+        try:
+            os.remove(temp_accounts_file)
+        except:
+            pass
 
     threads = THREADS
 

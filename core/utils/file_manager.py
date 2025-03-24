@@ -24,3 +24,22 @@ def shift_file(file):
         f.write(data)  # write the data back
         f.truncate()  # set the file size to the current size
         return first_line.strip()
+
+
+def remove_duplicate_accounts(accounts_list):
+    """
+    Удаляет дубликаты аккаунтов из списка
+    Дубликаты определяются по email (часть до :)
+    """
+    unique_accounts = {}
+    for account in accounts_list:
+        try:
+            email = account.split(':')[0]
+            if email not in unique_accounts:
+                unique_accounts[email] = account
+        except:
+            # Пропускаем некорректно форматированные строки
+            pass
+
+    # Возвращаем список уникальных аккаунтов
+    return list(unique_accounts.values())
