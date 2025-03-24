@@ -30,11 +30,18 @@ class Grass(GrassWs, GrassRest, FailureCounter):
     # global_fail_counter = 0
 
     def __init__(self, _id: int, email: str, password: str, proxy: str = None, db: AccountsDB = None,
-                 user_agent: str = None):
+                 user_agent: str = None, node_type: str = None):
         self.proxy = Proxy.from_str(proxy).as_url if proxy else None
-        super(GrassWs, self).__init__(email=email, password=password,
-                                      user_agent=user_agent or str(UserAgent(platforms=['desktop']).random),
-                                      proxy=self.proxy)
+        user_agent = user_agent or str(UserAgent(platforms=['desktop']).random)
+
+        # Сохраняем node_type и передаем его в родительские классы
+        self.node_type = node_type
+
+        # Корректно инициализируем оба родительских класса
+        GrassWs.__init__(self, user_agent=user_agent, proxy=self.proxy, node_type=self.node_type)
+        GrassRest.__init__(self, email=email, password=password, user_agent=user_agent, proxy=self.proxy)
+        FailureCounter.__init__(self)
+
         self.proxy_score: Optional[int] = None
         self.id: int = _id
 

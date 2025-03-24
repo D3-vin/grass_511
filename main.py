@@ -22,8 +22,8 @@ from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, THREADS, \
     PROXY_DB_PATH, MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, \
     SHOW_LOGS_RARELY, NODE_TYPE
 
-
 ua = UserAgent(platforms=['desktop'])
+
 
 def bot_info(name: str = ""):
     cprint(text2art(name), 'green')
@@ -34,9 +34,29 @@ def bot_info(name: str = ""):
     print(
         f"{colored('Public script / Not for sale', color='light_red')}\n"
         f"{colored('Паблик скрипт / Не для продажи', color='light_red')}\n"
-        f"{colored('sourse EnJoYeR mod by TellBip', color='light_yellow')} "
-        f"{colored('https://t.me/+b0BPbs7V1aE2NDFi', color='light_green')}"
+        f"{colored('source EnJoYeR mod by ', color='light_yellow')}{colored('@Tell_Bip', color='blue')}\n"
+        f"{colored('Telegram chat: https://t.me/+b0BPbs7V1aE2NDFi', color='light_green')}"
     )
+
+
+def show_menu():
+    print("\n" + "=" * 50)
+    print(colored("Choose mode:", "light_cyan"))
+    print(colored("1) Farm 1.25x", "light_green"))
+    print(colored("2) Farm 1x", "light_green"))
+    print(colored("3) Claim rewards", "light_yellow"))
+    print(colored("4) Exit", "light_red"))
+    print("=" * 50 + "\n")
+
+    while True:
+        try:
+            choice = int(input(colored("Enter the number (1-4): ", "light_cyan")))
+            if 1 <= choice <= 4:
+                return choice
+            else:
+                print(colored("Error: enter a number from 1 to 4", "light_red"))
+        except ValueError:
+            print(colored("Error: enter a number from 1 to 4", "light_red"))
 
 
 async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None):
@@ -47,22 +67,34 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
         return False
 
     grass = None
+    # local_db = None
 
     try:
-        user_agent = str(ua.random)
-        
+        # Создаем локальную копию базы данных для каждого воркера
+        # local_db = AccountsDB(PROXY_DB_PATH)
+        # await local_db.connect()
+
+        # user_agent = UserAgent(os=['windows', 'macos', 'linux'])
+        # user_agent = user_agent.chrome
+
+        user_agent = str(ua.chrome)
+
+        # Получаем текущий выбранный режим из глобальных переменных
+        current_node_type = NODE_TYPE
+
         grass = Grass(
             _id=_id,
             email=email,
             password=password,
             proxy=proxy,
             db=db,
-            user_agent=user_agent
+            user_agent=user_agent,
+            node_type=current_node_type  # Передаем выбранный режим
         )
 
         if MINING_MODE:
             await asyncio.sleep(random.uniform(1, 2) * _id)
-            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
+            logger.info(f"Starting №{_id} | {email} | {password} | {proxy} | Mode: {current_node_type}")
         else:
             await asyncio.sleep(random.uniform(1, 3))
             logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
@@ -85,6 +117,30 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
 
 
 async def main():
+    # Показываем меню выбора режима
+    choice = show_menu()
+
+    # Устанавливаем режим в зависимости от выбора
+    global MINING_MODE, CLAIM_REWARDS_ONLY, NODE_TYPE
+
+    if choice == 1:  # Farm 1.25x
+        MINING_MODE = True
+        CLAIM_REWARDS_ONLY = False
+        NODE_TYPE = "1_25x"
+        logger.info("Selected mode: Farm 1.25x")
+    elif choice == 2:  # Farm 1x
+        MINING_MODE = True
+        CLAIM_REWARDS_ONLY = False
+        NODE_TYPE = "1x"
+        logger.info("Selected mode: Farm 1x")
+    elif choice == 3:  # Claim rewards
+        MINING_MODE = False
+        CLAIM_REWARDS_ONLY = True
+        logger.info("Selected mode: Claim rewards")
+    elif choice == 4:  # Exit
+        logger.info("Exiting program")
+        return
+
     accounts = file_to_list(ACCOUNTS_FILE_PATH)
 
     if not accounts:
@@ -139,10 +195,10 @@ async def main():
 if __name__ == "__main__":
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        bot_info("GRASS 5.1.1")
+        bot_info("GRASS   5.1.1")
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(main())
     else:
-        bot_info("GRASS 5.1.1")
+        bot_info("GRASS   5.1.1")
         asyncio.run(main())

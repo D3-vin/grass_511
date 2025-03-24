@@ -1,8 +1,7 @@
 import asyncio
 import json
 import time
-from base64 import b64decode, b64encode
-from random import choice
+from base64 import b64encode
 import aiohttp
 from aiohttp import WSMsgType
 import uuid
@@ -17,7 +16,7 @@ from data.config import NODE_TYPE, USE_WSS
 
 
 class GrassWs:
-    def __init__(self, user_agent: str = None, proxy: str = None):
+    def __init__(self, user_agent: str = None, proxy: str = None, node_type: str = None):
         self.user_agent = user_agent
         self.proxy = proxy
         self.destination = None
@@ -28,12 +27,24 @@ class GrassWs:
         self.last_live_timestamp = time.time()  # Для отслеживания "живости"
         # self.ws_session = None
 
+        # Используем переданный node_type или берем из config.py
+        current_node_type = node_type or NODE_TYPE
+
+        # Выбор extension ID в зависимости от NODE_TYPE
+        if current_node_type == "1x":
+            self.extension_id = "ilehaonighjijnmpnagapkhpcdbhclfg"  # ID для режима 1x
+            # print(f"Using extension ID for 1x mode: {self.extension_id}")
+
+        else:  # 1_25x или 2x
+            self.extension_id = "lkbnfiajjmbhnfledhphioinpickokdi"  # ID для режима 1.25x
+            # print(f"Using extension ID for 1.25x mode: {self.extension_id}")
+
     async def get_addr(self, browser_id: str, user_id: str):
         message = {
             "browserId": browser_id,
             "userId": user_id,
             "version": "5.1.1",
-            "extensionId": "lkbnfiajjmbhnfledhphioinpickokdi",
+            "extensionId": self.extension_id,
             "userAgent": self.user_agent,
             "deviceType": "extension"
         }
@@ -43,7 +54,7 @@ class GrassWs:
             'User-Agent': self.user_agent,
             'Content-Type': 'application/json',
             'Accept': '*/*',
-            'Origin': 'chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi',
+            'Origin': f'chrome-extension://{self.extension_id}',
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Dest': 'empty',
@@ -78,14 +89,14 @@ class GrassWs:
 
                     return self.destination, self.token
                 except Exception as e:
-                    print(f"Error processing response: {e}, response: {response.status}")
+                    # print(f"Error processing response: {e}, response: {response.status}")
                     raise ProxyError(f"Error processing response: {e}")
             else:
-                print(f"Failed to get connection info: {response.status}")
+                # print(f"Failed to get connection info: {response.status}")
                 raise ProxyError(f"Failed to get connection info: {response.status}")
 
         except Exception as e:
-            print(f"Error getting connection info: {type(e).__name__}: {e}")
+            # print(f"Error getting connection info: {type(e).__name__}: {e}")
             raise ProxyError(f"Error getting connection info: {type(e).__name__}: {e}")
 
     async def connect(self):
@@ -105,7 +116,7 @@ class GrassWs:
             'Cache-Control': 'no-cache',
             'User-Agent': self.user_agent,
             'Upgrade': 'websocket',
-            'Origin': 'chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi',
+            'Origin': f'chrome-extension://{self.extension_id}',
             'Sec-WebSocket-Version': '13',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.9',

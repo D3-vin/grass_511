@@ -6,14 +6,12 @@ NODE_TYPE = "1_25x"  # 1x, 1_25x, 2x
 # WebSocket configuration
 USE_WSS = False  # True для WSS (защищенное соединение), False для WS
 
-#########################################
-CLAIM_REWARDS_ONLY = False  # claim tiers rewards only (https://app.getgrass.io/dashboard/referral-program)
-
 STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = True  # stop account for 20 minutes, to reduce proxy traffic usage
 CHECK_POINTS = True  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
-# Mining mode
+# Default modes
+CLAIM_REWARDS_ONLY = False
 MINING_MODE = True
 
 ########################################
