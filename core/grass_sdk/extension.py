@@ -43,7 +43,7 @@ class GrassWs:
         message = {
             "browserId": browser_id,
             "userId": user_id,
-            "version": "5.1.1",
+            "version": "5.3.1",
             "extensionId": self.extension_id,
             "userAgent": self.user_agent,
             "deviceType": "extension"
