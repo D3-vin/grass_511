@@ -1,3 +1,11 @@
+# Captcha service settings
+CAPTCHA_SERVICE = "2captcha"  # Captcha solving service (available: 2captcha, capmonster, anticaptcha)
+CAPTCHA_API_KEY = "api"  # API key for the service
+
+# Captcha site settings
+CAPTCHA_WEBSITE_KEY = "6LeeT-0pAAAAAFJ5JnCpNcbYCBcAerNHlkK4nm6y"
+CAPTCHA_WEBSITE_URL = "https://app.grass.io/login"
+
 THREADS = 5  # for claim rewards mode / approve email mode
 MIN_PROXY_SCORE = 50  # Put MIN_PROXY_SCORE = 0 not to check proxy score (if site is down)
 
@@ -19,3 +27,5 @@ MINING_MODE = True
 ACCOUNTS_FILE_PATH = 'data/accounts.txt'
 PROXIES_FILE_PATH = 'data/proxies.txt'
 PROXY_DB_PATH = 'data/proxies_stats.db'
+
+

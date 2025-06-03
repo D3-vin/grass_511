@@ -10,6 +10,9 @@ from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_except
 from core.utils import logger
 from core.utils.exception import LoginException, ProxyBlockedException, CloudFlareHtmlException, ProxyScoreNotFoundException
 from core.utils.session import BaseClient
+from core.utils.captcha import ServiceCapmonster, ServiceAnticaptcha, Service2Captcha
+from data.config import CAPTCHA_SERVICE, CAPTCHA_API_KEY, CAPTCHA_WEBSITE_KEY, CAPTCHA_WEBSITE_URL
+from httpx import AsyncClient
 
 
 class GrassRest(BaseClient):
@@ -29,7 +32,7 @@ class GrassRest(BaseClient):
            before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
            reraise=True)
     async def retrieve_user(self):
-        url = 'https://api.getgrass.io/retrieveUser'
+        url = 'https://api.grass.io/retrieveUser'
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 
@@ -51,7 +54,7 @@ class GrassRest(BaseClient):
         return True
 
     async def claim_reward_for_tier(self):
-        url = 'https://api.getgrass.io/claimReward'
+        url = 'https://api.grass.io/claimReward'
 
         response = await self.session.post(url, headers=self.website_headers, proxy=self.proxy)
 
@@ -70,7 +73,7 @@ class GrassRest(BaseClient):
         return await handler(self.get_points)()
 
     async def get_points(self):
-        url = 'https://api.getgrass.io/users/earnings/epochs'
+        url = 'https://api.grass.io/users/earnings/epochs'
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 
@@ -101,11 +104,29 @@ class GrassRest(BaseClient):
         return await handler(self.login)()
 
     async def login(self):
-        url = 'https://api.getgrass.io/login'
+        url = 'https://api.grass.io/login'
+
+        # Получаем токен капчи согласно настройкам
+        if CAPTCHA_SERVICE == "capmonster":
+            cap_service = ServiceCapmonster(api_key=CAPTCHA_API_KEY, website_key=CAPTCHA_WEBSITE_KEY, website_url=CAPTCHA_WEBSITE_URL)
+            token = await cap_service.solve_captcha()
+        elif CAPTCHA_SERVICE == "anticaptcha":
+            cap_service = ServiceAnticaptcha(api_key=CAPTCHA_API_KEY, website_key=CAPTCHA_WEBSITE_KEY, website_url=CAPTCHA_WEBSITE_URL)
+            token = await cap_service.solve_captcha()
+        elif CAPTCHA_SERVICE == "2captcha":
+            cap_service = Service2Captcha(api_key=CAPTCHA_API_KEY, website_key=CAPTCHA_WEBSITE_KEY, website_url=CAPTCHA_WEBSITE_URL)
+            token = await cap_service.solve_captcha()
+        elif CAPTCHA_SERVICE == "cflsolver":
+            async with AsyncClient() as session:
+                cap_service = CFLSolver(api_key=CAPTCHA_API_KEY, session=session, proxy=self.proxy, website_key=CAPTCHA_WEBSITE_KEY, website_url=CAPTCHA_WEBSITE_URL)
+                token = await cap_service.solve_captcha()
+        else:
+            raise Exception(f"Unknown CAPTCHA_SERVICE: {CAPTCHA_SERVICE}")
 
         json_data = {
             'password': self.password,
             'username': self.email,
+            "recaptchaToken": token,
         }
 
         response = await self.session.post(url, headers=self.website_headers, data=json.dumps(json_data),
@@ -141,19 +162,19 @@ class GrassRest(BaseClient):
         return res_json['data']['devices'][0]['device_id']
 
     async def get_user_info(self):
-        url = 'https://api.getgrass.io/users/dash'
+        url = 'https://api.grass.io/users/dash'
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
         return await response.json()
 
     async def get_devices_info(self):
-        url = 'https://api.getgrass.io/activeIps'  # /extension/user-score /activeDevices
+        url = 'https://api.grass.io/activeIps'  # /extension/user-score /activeDevices
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
         return await response.json()
 
     async def get_device_info(self, device_id: str):
-        url = f"https://api.getgrass.io/retrieveDevice?input=%7B%22deviceId%22:%22{device_id}%22%7D"
+        url = f"https://api.grass.io/retrieveDevice?input=%7B%22deviceId%22:%22{device_id}%22%7D"
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
         return await response.json()
 
@@ -194,12 +215,12 @@ class GrassRest(BaseClient):
                      if device['ipAddress'] == self.ip), None)
 
     async def get_proxy_score_via_devices(self):
-        url = 'https://api.getgrass.io/users/devices'
+        url = 'https://api.grass.io/users/devices'
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 
         if response.status != 200:
-            raise ProxyScoreNotFoundException(f"Get proxy score response: {await response.text()}")
+            raise ProxyScoreNotFoundException(f"Get proxy score response: {await response.status}")
 
         return await response.json()
 
@@ -207,7 +228,7 @@ class GrassRest(BaseClient):
         return await self.get_ip()
 
     async def get_ip(self):
-        url = 'https://api.getgrass.io/ip'
+        url = 'https://api.grass.io/ip'
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 

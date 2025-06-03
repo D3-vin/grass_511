@@ -225,10 +225,10 @@ async def main():
 if __name__ == "__main__":
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        bot_info("GRASS   5.1.1")
+        bot_info("GRASS   5.3.1")
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(main())
     else:
-        bot_info("GRASS   5.1.1")
+        bot_info("GRASS   5.3.1")
         asyncio.run(main())
