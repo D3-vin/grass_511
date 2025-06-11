@@ -19,6 +19,7 @@ from .grass_sdk.website import GrassRest
 from .utils import logger
 
 from .utils.accounts_db import AccountsDB
+from .utils.tokens_db import TokensDB
 from .utils.error_helper import raise_error, FailureCounter
 from .utils.exception import WebsocketClosedException, LowProxyScoreException, ProxyScoreNotFoundException, \
     ProxyForbiddenException, ProxyError, WebsocketConnectionFailedError, FailureLimitReachedException, \
@@ -30,7 +31,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
     # global_fail_counter = 0
 
     def __init__(self, _id: int, email: str, password: str, proxy: str = None, db: AccountsDB = None,
-                 user_agent: str = None, node_type: str = None):
+                 tokens_db: TokensDB = None, user_agent: str = None, node_type: str = None):
         self.proxy = Proxy.from_str(proxy).as_url if proxy else None
         user_agent = user_agent or str(UserAgent(platforms=['desktop']).random)
 
@@ -39,13 +40,14 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
         # Корректно инициализируем оба родительских класса
         GrassWs.__init__(self, user_agent=user_agent, proxy=self.proxy, node_type=self.node_type)
-        GrassRest.__init__(self, email=email, password=password, user_agent=user_agent, proxy=self.proxy)
+        GrassRest.__init__(self, email=email, password=password, user_agent=user_agent, proxy=self.proxy, db=db, tokens_db=tokens_db)
         FailureCounter.__init__(self)
 
         self.proxy_score: Optional[int] = None
         self.id: int = _id
 
         self.db: AccountsDB = db
+        self.tokens_db: TokensDB = tokens_db
 
         self.session: aiohttp.ClientSession = aiohttp.ClientSession(trust_env=True,
                                                                     connector=aiohttp.TCPConnector(ssl=False))

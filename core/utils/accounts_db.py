@@ -38,6 +38,8 @@ class AccountsDB:
         points TEXT NOT NULL
         )
         ''')
+        
+        
         await self.connection.commit()
 
     async def add_account(self, email, new_proxy):
@@ -59,6 +61,22 @@ class AccountsDB:
                 await self.cursor.execute("INSERT INTO Accounts(email, proxies) VALUES(?, ?)", (email, new_proxy))
                 await self.connection.commit()
 
+    async def save_auth_token(self, email, token):
+        """Сохраняет токен авторизации для указанного email"""
+        async with self.db_lock:
+            await self.cursor.execute(
+                "INSERT OR REPLACE INTO AuthTokens(email, token, updated_at) VALUES(?, ?, CURRENT_TIMESTAMP)", 
+                (email, token)
+            )
+            await self.connection.commit()
+    
+    async def get_auth_token(self, email):
+        """Получает сохраненный токен авторизации для указанного email"""
+        async with self.db_lock:
+            await self.cursor.execute("SELECT token FROM AuthTokens WHERE email=?", (email,))
+            result = await self.cursor.fetchone()
+            return result[0] if result else None
+
     async def proxies_exist(self, proxy):
         async with self.db_lock:
             await self.cursor.execute("SELECT email, proxies FROM Accounts")
@@ -72,18 +90,26 @@ class AccountsDB:
         return False
 
     async def update_or_create_point_stat(self, user_id, email, points):
+        user_id_str = str(user_id)
+        points_str = str(points)
+
         async with self.db_lock:
-            await self.cursor.execute("SELECT * FROM PointStats WHERE id = ?", (user_id,))
-            existing_user = await self.cursor.fetchone()
+            try:
+                await self.cursor.execute("SELECT * FROM PointStats WHERE id = ?", (user_id_str,))
+                existing_user = await self.cursor.fetchone()
 
-            if existing_user:
-                await self.cursor.execute("UPDATE PointStats SET email = ?, points = ? WHERE id = ?",
-                                          (email, points, user_id))
-            else:
-                await self.cursor.execute("INSERT INTO PointStats(id, email, points) VALUES (?, ?, ?)",
-                                          (user_id, email, points))
+                if existing_user:
+                    await self.cursor.execute("UPDATE PointStats SET email = ?, points = ? WHERE id = ?",
+                                            (email, points_str, user_id_str))
+                else:
+                    await self.cursor.execute("INSERT INTO PointStats(id, email, points) VALUES (?, ?, ?)",
+                                            (user_id_str, email, points_str))
 
-            await self.connection.commit()
+                await self.connection.commit()
+            except Exception as e:
+                from core.utils import logger
+                logger.error(f"Error updating points: {e} (user_id: {user_id}, type: {type(user_id)})")
+                # Продолжаем выполнение даже при ошибке
 
     async def get_total_points(self):
         async with self.db_lock:

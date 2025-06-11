@@ -16,11 +16,12 @@ from core import Grass
 from core.autoreger import AutoReger
 from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
+from core.utils.tokens_db import TokensDB
 from core.utils.exception import LoginException
 from core.utils.file_manager import remove_duplicate_accounts, str_to_file
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, THREADS, \
     CLAIM_REWARDS_ONLY, MINING_MODE, \
-    PROXY_DB_PATH, MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, \
+    PROXY_DB_PATH, TOKENS_DB_PATH, MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, \
     SHOW_LOGS_RARELY, NODE_TYPE
 
 ua = UserAgent(platforms=['desktop'])
@@ -60,7 +61,7 @@ def show_menu():
             print(colored("Error: enter a number from 1 to 4", "light_red"))
 
 
-async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None):
+async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None, tokens_db: TokensDB = None):
     try:
         email, password = account.split(":")[:2]
     except ValueError:
@@ -68,16 +69,8 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
         return False
 
     grass = None
-    # local_db = None
 
     try:
-        # Создаем локальную копию базы данных для каждого воркера
-        # local_db = AccountsDB(PROXY_DB_PATH)
-        # await local_db.connect()
-
-        # user_agent = UserAgent(os=['windows', 'macos', 'linux'])
-        # user_agent = user_agent.chrome
-
         user_agent = str(ua.chrome)
 
         # Получаем текущий выбранный режим из глобальных переменных
@@ -89,8 +82,9 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
             password=password,
             proxy=proxy,
             db=db,
+            tokens_db=tokens_db,  # Передаем базу данных токенов
             user_agent=user_agent,
-            node_type=current_node_type  # Передаем выбранный режим
+            node_type=current_node_type
         )
 
         if MINING_MODE:
@@ -181,6 +175,10 @@ async def main():
 
     db = AccountsDB(PROXY_DB_PATH)
     await db.connect()
+    
+    # Инициализируем базу данных токенов (НЕ удаляем ее при каждом запуске!)
+    tokens_db = TokensDB(TOKENS_DB_PATH)
+    await tokens_db.connect()
 
     for i, account in enumerate(accounts):
         email = account.split(":")[0]
@@ -197,7 +195,7 @@ async def main():
     autoreger = AutoReger.get_accounts(
         (accounts_file_for_autoreger, PROXIES_FILE_PATH),
         with_id=True,
-        static_extra=(db,)
+        static_extra=(db, tokens_db)  # Передаем обе базы данных
     )
 
     # Удаляем временный файл, если он был создан
@@ -220,6 +218,7 @@ async def main():
     await autoreger.start(worker_task, threads)
 
     await db.close_connection()
+    await tokens_db.close_connection()  # Закрываем соединение с базой данных токенов
 
 
 if __name__ == "__main__":
