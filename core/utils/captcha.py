@@ -27,7 +27,7 @@ class ServiceAnticaptcha:
         self.api_key = api_key
         self.website_key = website_key
         self.website_url = website_url
-        solver = recaptchaV2Proxyless()
+        self.solver = recaptchaV2Proxyless()
         self.solver.set_verbose(1)
         self.solver.set_key(self.api_key)
         self.solver.set_website_url(self.website_url)
