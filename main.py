@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import traceback
+import uuid
 
 import aiohttp
 from art import text2art
@@ -47,18 +48,19 @@ def show_menu():
     print(colored("1) Farm 1.25x", "light_green"))
     print(colored("2) Farm 1x", "light_green"))
     print(colored("3) Claim rewards", "light_yellow"))
-    print(colored("4) Exit", "light_red"))
+    print(colored("4) Login only (update tokens)", "light_blue"))
+    print(colored("5) Exit", "light_red"))
     print("=" * 50 + "\n")
 
     while True:
         try:
-            choice = int(input(colored("Enter the number (1-4): ", "light_cyan")))
-            if 1 <= choice <= 4:
+            choice = int(input(colored("Enter the number (1-5): ", "light_cyan")))
+            if 1 <= choice <= 5:
                 return choice
             else:
-                print(colored("Error: enter a number from 1 to 4", "light_red"))
+                print(colored("Error: enter a number from 1 to 5", "light_red"))
         except ValueError:
-            print(colored("Error: enter a number from 1 to 4", "light_red"))
+            print(colored("Error: enter a number from 1 to 5", "light_red"))
 
 
 async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None, tokens_db: TokensDB = None):
@@ -72,8 +74,6 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
 
     try:
         user_agent = str(ua.chrome)
-
-        # Получаем текущий выбранный режим из глобальных переменных
         current_node_type = NODE_TYPE
 
         grass = Grass(
@@ -82,22 +82,53 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
             password=password,
             proxy=proxy,
             db=db,
-            tokens_db=tokens_db,  # Передаем базу данных токенов
+            tokens_db=tokens_db,
             user_agent=user_agent,
             node_type=current_node_type
         )
 
+        # Режим только логина
+        if LOGIN_ONLY_MODE:
+            await grass.login_only()
+            return True
+
+        # Получаем токен из базы для режимов фарминга и claim rewards
+        token = await tokens_db.get_token(email) if tokens_db else None
+        if not token:
+            logger.warning(f"{_id} | Нет токена для {email}, пропуск...")
+            return False
+            
+        # Устанавливаем токен вручную
+        grass.website_headers['Authorization'] = token
+        
+        # Получаем user_id через retrieve_user
+        user_info = await grass.retrieve_user()
+        user_id = None
+        
+        if user_info and not user_info.get('error'):
+            if user_info.get('data', {}).get('userId'):
+                user_id = user_info['data']['userId']
+            elif user_info.get('result', {}).get('data', {}).get('userId'):
+                user_id = user_info['result']['data']['userId']
+            elif user_info.get('data', {}).get('id'):
+                user_id = user_info['data']['id']
+            elif user_info.get('result', {}).get('data', {}).get('id'):
+                user_id = user_info['result']['data']['id']
+                
+        if not user_id:
+            logger.warning(f"{_id} | Не удалось получить user_id для {email}, пропуск...")
+            return False
+
+        # Режим фарминга
         if MINING_MODE:
             await asyncio.sleep(random.uniform(1, 2) * _id)
-            logger.info(f"Starting №{_id} | {email} | {password} | {proxy} | Mode: {current_node_type}")
+            logger.info(f"Starting №{_id} | {email} | {proxy} | Mode: {current_node_type}")
+            await grass.start(user_id)
         else:
+            # Режим claim rewards - тоже без логина
             await asyncio.sleep(random.uniform(1, 3))
-            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
-
-        if CLAIM_REWARDS_ONLY:
-            await grass.claim_rewards()
-        else:
-            await grass.start()
+            logger.info(f"Starting №{_id} | {email} | {proxy}")
+            await grass.claim_rewards_only()
 
         return True
     except LoginException as e:
@@ -112,11 +143,11 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
 
 
 async def main():
-    # Показываем меню выбора режима
     choice = show_menu()
-
-    # Устанавливаем режим в зависимости от выбора
-    global MINING_MODE, CLAIM_REWARDS_ONLY, NODE_TYPE
+    global MINING_MODE, CLAIM_REWARDS_ONLY, NODE_TYPE, LOGIN_ONLY_MODE
+    
+    # По умолчанию режим логина выключен
+    LOGIN_ONLY_MODE = False
 
     if choice == 1:  # Farm 1.25x
         MINING_MODE = True
@@ -132,7 +163,12 @@ async def main():
         MINING_MODE = False
         CLAIM_REWARDS_ONLY = True
         logger.info("Selected mode: Claim rewards")
-    elif choice == 4:  # Exit
+    elif choice == 4:  # Login only
+        MINING_MODE = False
+        CLAIM_REWARDS_ONLY = False
+        LOGIN_ONLY_MODE = True
+        logger.info("Selected mode: Login only (update tokens)")
+    elif choice == 5:  # Exit
         logger.info("Exiting program")
         return
 
@@ -166,12 +202,13 @@ async def main():
 
     proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
 
-    #### delete DB if it exists to clean up
-    try:
-        if os.path.exists(PROXY_DB_PATH):
-            os.remove(PROXY_DB_PATH)
-    except PermissionError:
-        logger.warning(f"Cannot remove {PROXY_DB_PATH}, file is in use")
+    # Удаляем базу прокси только если это не режим логина
+    if not LOGIN_ONLY_MODE:
+        try:
+            if os.path.exists(PROXY_DB_PATH):
+                os.remove(PROXY_DB_PATH)
+        except PermissionError:
+            logger.warning(f"Cannot remove {PROXY_DB_PATH}, file is in use")
 
     db = AccountsDB(PROXY_DB_PATH)
     await db.connect()
@@ -195,7 +232,7 @@ async def main():
     autoreger = AutoReger.get_accounts(
         (accounts_file_for_autoreger, PROXIES_FILE_PATH),
         with_id=True,
-        static_extra=(db, tokens_db)  # Передаем обе базы данных
+        static_extra=(db, tokens_db)
     )
 
     # Удаляем временный файл, если он был создан
@@ -207,7 +244,9 @@ async def main():
 
     threads = THREADS
 
-    if CLAIM_REWARDS_ONLY:
+    if LOGIN_ONLY_MODE:
+        msg = "__LOGIN__ MODE"
+    elif CLAIM_REWARDS_ONLY:
         msg = "__CLAIM__ MODE"
     else:
         msg = "__MINING__ MODE"
@@ -218,16 +257,16 @@ async def main():
     await autoreger.start(worker_task, threads)
 
     await db.close_connection()
-    await tokens_db.close_connection()  # Закрываем соединение с базой данных токенов
+    await tokens_db.close_connection()
 
 
 if __name__ == "__main__":
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        bot_info("GRASS   5.3.1")
+        bot_info("GRASS   5.5.1")
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(main())
     else:
-        bot_info("GRASS   5.3.1")
+        bot_info("GRASS   5.5.1")
         asyncio.run(main())

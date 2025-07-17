@@ -25,77 +25,33 @@ class GrassRest(BaseClient):
         self.tokens_db = tokens_db  # Добавляем поле для базы данных токенов
 
     async def enter_account(self):
-        # Попытаемся получить сохраненный токен из отдельной базы данных токенов
+        # Получаем сохранённый токен из базы
         token = None
         if self.tokens_db:
             token = await self.tokens_db.get_token(self.email)
-            #if token:
-                #logger.info(f"{self.email} | Saved token found in database")
-            #else:
-                #logger.info(f"{self.email} | Token not found in database")
-            
         if token:
-            # Используем сохраненный токен
+            # Просто используем токен, не проверяем валидность
             self.website_headers['Authorization'] = token
-            # Проверяем, что токен действителен
-            try:
-                #logger.info(f"{self.email} | Checking saved token validity...")
-                user_info = await self.retrieve_user()
-                
-                # Добавим подробное логирование ответа сервера
-                #if user_info:
-                    #logger.info(f"{self.email} | Server response when checking token: {str(user_info)[:200]}...")
-                
-                # Проверяем наличие ошибки в ответе
-                if user_info and not user_info.get('error'):
-                    # Проверяем в какой структуре приходит userId
-                    # В ответе retrieve_user userId может находиться в разных местах структуры JSON
-                    user_id = None
-                    
-                    # Вариант 1: в data/userId
-                    if user_info.get('data', {}).get('userId'):
-                        user_id = user_info['data']['userId']
-                    # Вариант 2: в result/data/userId
-                    elif user_info.get('result', {}).get('data', {}).get('userId'):
-                        user_id = user_info['result']['data']['userId']
-                    # Вариант 3: в data/id
-                    elif user_info.get('data', {}).get('id'):
-                        user_id = user_info['data']['id']
-                    # Вариант 4: в result/data/id
-                    elif user_info.get('result', {}).get('data', {}).get('id'):
-                        user_id = user_info['result']['data']['id']
-                    
-                    if user_id:
-                        #self.id = user_id
-                        #logger.info(f"{self.email} | Using saved token")
-                        return user_id
-                    else:
-                        logger.warning(f"{self.email} | Token is valid, but userId not found in response")
-                else:
-                    error_message = "Unknown error"
-                    if user_info and user_info.get('error'):
-                        if isinstance(user_info['error'], dict) and user_info['error'].get('message'):
-                            error_message = user_info['error']['message']
-                        else:
-                            error_message = str(user_info['error'])
-                    
-                    logger.warning(f"{self.email} | Token is invalid. Error: {error_message}")
-            except Exception as e:
-                logger.warning(f"{self.email} | Error when checking token: {str(e)}")
-                # Если токен недействителен, продолжаем с логином
-        
-        # Если токен отсутствует или недействителен, выполняем логин
-        #logger.info(f"{self.email} | Logging in with username and password...")
+            # Получаем user_id через retrieve_user (без логина)
+            user_info = await self.retrieve_user()
+            user_id = None
+            if user_info and not user_info.get('error'):
+                if user_info.get('data', {}).get('userId'):
+                    user_id = user_info['data']['userId']
+                elif user_info.get('result', {}).get('data', {}).get('userId'):
+                    user_id = user_info['result']['data']['userId']
+                elif user_info.get('data', {}).get('id'):
+                    user_id = user_info['data']['id']
+                elif user_info.get('result', {}).get('data', {}).get('id'):
+                    user_id = user_info['result']['data']['id']
+            return user_id
+        # Если токена нет — логинимся
         res_json = await self.handle_login()
         token = res_json['result']['data']['accessToken']
         self.website_headers['Authorization'] = token
         user_id = res_json['result']['data']['userId']
-        
-        # Сохраняем токен в отдельную базу данных токенов
         if self.tokens_db:
             await self.tokens_db.save_token(self.email, token)
-            #logger.info(f"{self.email} | Token saved to permanent database")
-        
         return user_id
 
     async def is_token_valid(self, token):

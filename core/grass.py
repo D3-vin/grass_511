@@ -58,16 +58,23 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         self.fail_count = 0
         self.limit = 7
 
-    async def start(self):
+    async def login_only(self):
+        user_id = await self.enter_account()
+        logger.success(f"{self.id} | {self.email} | Логин выполнен успешно, токен сохранен")
+        return user_id
+
+    async def start(self, user_id=None):
         if self.db:
             self.proxies = await self.db.get_proxies_by_email(self.email)
         self.log_global_count(True)
-        # logger.info(f"{self.id} | {self.email} | Starting...")
+
+        if user_id is None:
+            logger.error(f"{self.id} | {self.email} | Нет user_id для фарминга")
+            return False
+
         while True:
             try:
                 Grass.is_site_down()
-
-                user_id = await self.enter_account()
 
                 browser_id = str(uuid.uuid3(uuid.NAMESPACE_DNS, self.proxy or ""))
 
@@ -162,6 +169,10 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         await self.enter_account()
         await self.claim_rewards_handler()
 
+        logger.info(f"{self.id} | Claimed all rewards.")
+
+    async def claim_rewards_only(self):
+        await self.claim_rewards_handler()
         logger.info(f"{self.id} | Claimed all rewards.")
 
     @retry(stop=stop_after_attempt(7),
