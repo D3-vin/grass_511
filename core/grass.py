@@ -60,7 +60,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
     async def login_only(self):
         user_id = await self.enter_account()
-        logger.success(f"{self.id} | {self.email} | Логин выполнен успешно, токен сохранен")
+        logger.success(f"{self.id} | {self.email} | Login successful, token saved")
         return user_id
 
     async def start(self, user_id=None):
@@ -69,7 +69,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         self.log_global_count(True)
 
         if user_id is None:
-            logger.error(f"{self.id} | {self.email} | Нет user_id для фарминга")
+            logger.error(f"{self.id} | {self.email} | No user_id for farming")
             return False
 
         while True:
@@ -83,11 +83,9 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 logger.warning(f"LoginException | {self.id} | {e}")
                 return False
             except (ProxyBlockedException, ProxyForbiddenException) as e:
-                # self.proxies.remove(self.proxy)
                 msg = "Proxy forbidden"
             except ProxyError as e:
                 if "connection to proxy closed" in str(e):
-                    # Удаляем прокси из списка, так как он не работает
                     msg = "Proxy connection closed, switching to next proxy"
                 else:
                     msg = "Low proxy score"

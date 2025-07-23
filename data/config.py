@@ -3,7 +3,7 @@ CAPTCHA_SERVICE = "2captcha"  # Captcha solving service (available: 2captcha, ca
 CAPTCHA_API_KEY = "api"  # API key for the service
 
 # Captcha site settings
-CAPTCHA_WEBSITE_KEY = "6LeeT-0pAAAAAFJ5JnCpNcbYCBcAerNHlkK4nm6y"
+CAPTCHA_WEBSITE_KEY = "0x4AAAAAABlfL-m2jw53nwb9"
 CAPTCHA_WEBSITE_URL = "https://app.grass.io/login"
 
 THREADS = 5  # for claim rewards mode / approve email mode

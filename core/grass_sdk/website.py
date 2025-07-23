@@ -162,10 +162,6 @@ class GrassRest(BaseClient):
         elif CAPTCHA_SERVICE == "2captcha":
             cap_service = Service2Captcha(api_key=CAPTCHA_API_KEY, website_key=CAPTCHA_WEBSITE_KEY, website_url=CAPTCHA_WEBSITE_URL)
             token = await cap_service.solve_captcha()
-        elif CAPTCHA_SERVICE == "cflsolver":
-            async with AsyncClient() as session:
-                cap_service = CFLSolver(api_key=CAPTCHA_API_KEY, session=session, proxy=self.proxy, website_key=CAPTCHA_WEBSITE_KEY, website_url=CAPTCHA_WEBSITE_URL)
-                token = await cap_service.solve_captcha()
         else:
             raise Exception(f"Unknown CAPTCHA_SERVICE: {CAPTCHA_SERVICE}")
 

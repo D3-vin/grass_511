@@ -1,10 +1,10 @@
 import asyncio
 import re
 from typing import Optional
-from capmonster_python import CapmonsterClient, RecaptchaV2Task
+from capmonster_python import CapmonsterClient, TurnstileTask
 from twocaptcha import TwoCaptcha
 from httpx import AsyncClient
-from anticaptchaofficial.recaptchav2proxyless import *
+from anticaptchaofficial.turnstileproxyless import *
 
 class ServiceCapmonster:
     def __init__(self, api_key, website_key, website_url):
@@ -14,20 +14,20 @@ class ServiceCapmonster:
         self.client = CapmonsterClient(api_key=self.api_key)
 
     async def solve_captcha(self):
-        task = RecaptchaV2Task(
+        task = TurnstileTask(
             websiteURL=self.website_url,
             websiteKey=self.website_key
         )
         task_id = await self.client.create_task_async(task)
         result = await self.client.join_task_result_async(task_id)
-        return result.get("gRecaptchaResponse")
+        return result
 
 class ServiceAnticaptcha:
     def __init__(self, api_key, website_key, website_url):
         self.api_key = api_key
         self.website_key = website_key
         self.website_url = website_url
-        self.solver = recaptchaV2Proxyless()
+        self.solver = turnstileProxyless()
         self.solver.set_verbose(1)
         self.solver.set_key(self.api_key)
         self.solver.set_website_url(self.website_url)
@@ -50,7 +50,7 @@ class Service2Captcha:
         self.website_key = website_key
         self.website_url = website_url
     def get_captcha_token(self):
-        captcha_token = self.solver.recaptcha(sitekey=self.website_key, url=self.website_url)
+        captcha_token = self.solver.turnstile(sitekey=self.website_key, url=self.website_url)
 
         if 'code' in captcha_token:
             captcha_token = captcha_token['code']
