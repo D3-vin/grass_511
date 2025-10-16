@@ -7,10 +7,6 @@ import traceback
 import uuid
 
 import aiohttp
-from art import text2art
-from termcolor import colored, cprint
-from fake_useragent import UserAgent
-
 from better_proxy import Proxy
 
 from core import Grass
@@ -20,47 +16,22 @@ from core.utils.accounts_db import AccountsDB
 from core.utils.tokens_db import TokensDB
 from core.utils.exception import LoginException
 from core.utils.file_manager import remove_duplicate_accounts, str_to_file
-from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, THREADS, \
+from core.ui.menu import MenuManager
+from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, THREADS, AUTH_THREADS, \
     CLAIM_REWARDS_ONLY, MINING_MODE, \
     PROXY_DB_PATH, TOKENS_DB_PATH, MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, \
     SHOW_LOGS_RARELY, NODE_TYPE
 
-ua = UserAgent(platforms=['desktop'])
+ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'
 
 
 def bot_info(name: str = ""):
-    cprint(text2art(name), 'green')
-
     if sys.platform == 'win32':
         ctypes.windll.kernel32.SetConsoleTitleW(f"{name}")
-
-    print(
-        f"{colored('Public script / Not for sale', color='light_red')}\n"
-        f"{colored('Паблик скрипт / Не для продажи', color='light_red')}\n"
-        f"{colored('source EnJoYeR mod by ', color='light_yellow')}{colored('@Tell_Bip', color='blue')}\n"
-        f"{colored('Telegram chat: https://t.me/+b0BPbs7V1aE2NDFi', color='light_green')}"
-    )
-
-
-def show_menu():
-    print("\n" + "=" * 50)
-    print(colored("Choose mode:", "light_cyan"))
-    print(colored("1) Farm 1.25x", "light_green"))
-    print(colored("2) Farm 1x", "light_green"))
-    print(colored("3) Claim rewards", "light_yellow"))
-    print(colored("4) Login only (update tokens)", "light_blue"))
-    print(colored("5) Exit", "light_red"))
-    print("=" * 50 + "\n")
-
-    while True:
-        try:
-            choice = int(input(colored("Enter the number (1-5): ", "light_cyan")))
-            if 1 <= choice <= 5:
-                return choice
-            else:
-                print(colored("Error: enter a number from 1 to 5", "light_red"))
-        except ValueError:
-            print(colored("Error: enter a number from 1 to 5", "light_red"))
+    
+    # Создаем экземпляр менеджера меню и отображаем приветствие
+    menu_manager = MenuManager()
+    menu_manager.display_welcome()
 
 
 async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None, tokens_db: TokensDB = None):
@@ -73,7 +44,7 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
     grass = None
 
     try:
-        user_agent = str(ua.chrome)
+        user_agent = ua
         current_node_type = NODE_TYPE
 
         grass = Grass(
@@ -143,7 +114,9 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
 
 
 async def main():
-    choice = show_menu()
+    # Создаем экземпляр менеджера меню
+    menu_manager = MenuManager()
+    choice = menu_manager.show_menu()
     global MINING_MODE, CLAIM_REWARDS_ONLY, NODE_TYPE, LOGIN_ONLY_MODE
     
     # По умолчанию режим логина выключен
@@ -153,23 +126,23 @@ async def main():
         MINING_MODE = True
         CLAIM_REWARDS_ONLY = False
         NODE_TYPE = "1_25x"
-        logger.info("Selected mode: Farm 1.25x")
+        menu_manager.show_mode_selected("Farm 1.25x")
     elif choice == 2:  # Farm 1x
         MINING_MODE = True
         CLAIM_REWARDS_ONLY = False
         NODE_TYPE = "1x"
-        logger.info("Selected mode: Farm 1x")
+        menu_manager.show_mode_selected("Farm 1x")
     elif choice == 3:  # Claim rewards
         MINING_MODE = False
         CLAIM_REWARDS_ONLY = True
-        logger.info("Selected mode: Claim rewards")
+        menu_manager.show_mode_selected("Claim rewards")
     elif choice == 4:  # Login only
         MINING_MODE = False
         CLAIM_REWARDS_ONLY = False
         LOGIN_ONLY_MODE = True
-        logger.info("Selected mode: Login only (update tokens)")
+        menu_manager.show_mode_selected("Login only (update tokens)")
     elif choice == 5:  # Exit
-        logger.info("Exiting program")
+        menu_manager.show_exit_message()
         return
 
     accounts = file_to_list(ACCOUNTS_FILE_PATH)
@@ -246,13 +219,14 @@ async def main():
 
     if LOGIN_ONLY_MODE:
         msg = "__LOGIN__ MODE"
+        threads = AUTH_THREADS
     elif CLAIM_REWARDS_ONLY:
         msg = "__CLAIM__ MODE"
     else:
         msg = "__MINING__ MODE"
         threads = len(autoreger.accounts)
 
-    logger.info(msg)
+    logger.info(f"{msg} | Threads: {threads}")
 
     await autoreger.start(worker_task, threads)
 

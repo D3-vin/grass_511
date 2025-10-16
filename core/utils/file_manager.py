@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 
@@ -9,6 +10,11 @@ def file_to_list(
 
 
 def str_to_file(file_name: str, msg: str, mode: Optional[str] = "a"):
+    # Создаем директорию если её нет
+    directory = os.path.dirname(file_name)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory)
+    
     with open(
             file_name,
             mode

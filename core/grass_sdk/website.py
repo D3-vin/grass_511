@@ -10,8 +10,8 @@ from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_except
 from core.utils import logger
 from core.utils.exception import LoginException, ProxyBlockedException, CloudFlareHtmlException, ProxyScoreNotFoundException
 from core.utils.session import BaseClient
-from core.utils.captcha import ServiceCapmonster, ServiceAnticaptcha, Service2Captcha
-from data.config import CAPTCHA_SERVICE, CAPTCHA_API_KEY, CAPTCHA_WEBSITE_KEY, CAPTCHA_WEBSITE_URL
+from core.utils.captcha import ServiceCapmonster, ServiceAnticaptcha, Service2Captcha, CFLSolver
+from data.config import CAPTCHA_SERVICE, CAPTCHA_API_KEY, CAPTCHA_WEBSITE_KEY, CAPTCHA_WEBSITE_URL, CFLSOLVER_BASE_URL
 from httpx import AsyncClient
 
 
@@ -162,6 +162,14 @@ class GrassRest(BaseClient):
         elif CAPTCHA_SERVICE == "2captcha":
             cap_service = Service2Captcha(api_key=CAPTCHA_API_KEY, website_key=CAPTCHA_WEBSITE_KEY, website_url=CAPTCHA_WEBSITE_URL)
             token = await cap_service.solve_captcha()
+        elif CAPTCHA_SERVICE == "cflsolver":
+            cap_service = CFLSolver(
+                api_key=CAPTCHA_API_KEY, 
+                base_url=CFLSOLVER_BASE_URL,
+                website_key=CAPTCHA_WEBSITE_KEY, 
+                website_url=CAPTCHA_WEBSITE_URL
+            )
+            token = await cap_service.solve_captcha_auto()
         else:
             raise Exception(f"Unknown CAPTCHA_SERVICE: {CAPTCHA_SERVICE}")
 

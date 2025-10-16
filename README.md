@@ -1,20 +1,24 @@
+## 🔹Grass Auto Farm mod 5.5.1🔹
 
 <div align="center">
-
   <p align="center">
-    <a href="https://t.me/cry_batya">
+    <a href="https://t.me/D3_vin">
       <img src="https://img.shields.io/badge/Telegram-Channel-blue?style=for-the-badge&logo=telegram" alt="Telegram Channel">
     </a>
-    <a href="https://t.me/+b0BPbs7V1aE2NDFi">
+    <a href="https://t.me/D3vin_chat">
       <img src="https://img.shields.io/badge/Telegram-Chat-blue?style=for-the-badge&logo=telegram" alt="Telegram Chat">
     </a>
   </p>
 </div>
 
-all question in chat [[My telegram chat ]](https://t.me/+b0BPbs7V1aE2NDFi) 
+## 📢 Connect with Us
+
+- **📢 Channel**: [https://t.me/D3_vin](https://t.me/D3_vin) - Latest updates and releases
+- **💬 Chat**: [https://t.me/D3vin_chat](https://t.me/D3vin_chat) - Community support and discussions
+- **📁 GitHub**: [https://github.com/D3-vin](https://github.com/D3-vin) - Source code and development
 
 
-# 🔹Grass Auto Farm mod 5.1.1🔹
+
 
 ### What is bot for?
    - Farm Points in 1x or 1.25x modes

@@ -16,7 +16,7 @@ class BaseClient:
             'content-type': 'application/json',
             'origin': 'https://app.grass.io',
             'referer': 'https://app.grass.io/',
-            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua': '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
             'sec-fetch-dest': 'empty',
