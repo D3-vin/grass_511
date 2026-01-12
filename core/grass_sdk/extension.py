@@ -24,26 +24,26 @@ class GrassWs:
         self.session = None
         self.websocket = None
         self.id = None
-        self.last_live_timestamp = time.time()  # Для отслеживания "живости"
+        self.last_live_timestamp = time.time()  # For tracking "liveness"
         # self.ws_session = None
 
-        # Используем переданный node_type или берем из config.py
+        # Use passed node_type or get from config.py
         current_node_type = node_type or NODE_TYPE
 
-        # Выбор extension ID в зависимости от NODE_TYPE
+        # Select extension ID based on NODE_TYPE
         if current_node_type == "1x":
-            self.extension_id = "ilehaonighjijnmpnagapkhpcdbhclfg"  # ID для режима 1x
+            self.extension_id = "ilehaonighjijnmpnagapkhpcdbhclfg"  # ID for 1x mode
             # print(f"Using extension ID for 1x mode: {self.extension_id}")
 
-        else:  # 1_25x или 2x
-            self.extension_id = "lkbnfiajjmbhnfledhphioinpickokdi"  # ID для режима 1.25x
+        else:  # 1_25x or 2x
+            self.extension_id = "lkbnfiajjmbhnfledhphioinpickokdi"  # ID for 1.25x mode
             # print(f"Using extension ID for 1.25x mode: {self.extension_id}")
 
     async def get_addr(self, browser_id: str, user_id: str):
         message = {
             "browserId": browser_id,
             "userId": user_id,
-            "version": "5.5.1",
+            "version": "6.1.3",
             "extensionId": self.extension_id,
             "userAgent": self.user_agent,
             "deviceType": "extension"
@@ -106,9 +106,9 @@ class GrassWs:
 
         random_bytes = os.urandom(16)
         sec_websocket_key = base64.b64encode(random_bytes).decode('utf-8')
-        # Извлекаем хост из destination
+        # Extract host from destination
 
-        # Точный набор заголовков как в Charles
+        # Exact set of headers as in Charles
         headers = {
             'Host': self.destination,
             'Connection': 'Upgrade',
@@ -122,7 +122,7 @@ class GrassWs:
             'Accept-Language': 'en-US,en;q=0.9',
             'Sec-WebSocket-Key': sec_websocket_key,
             'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
-            'Accept': ''  # Устанавливаем пустое значение
+            'Accept': ''  # Set empty value
         }
 
         try:
@@ -130,7 +130,7 @@ class GrassWs:
                 uri,
                 headers=headers,
                 proxy=self.proxy,
-                ssl=USE_WSS  # Используем SSL только для WSS
+                ssl=USE_WSS  # Use SSL only for WSS
             )
 
         except Exception as e:
@@ -145,14 +145,14 @@ class GrassWs:
         msg = await self.websocket.receive()
         if msg.type == WSMsgType.CLOSED:
             raise WebsocketClosedException(f"Websocket closed: {msg}")
-        self.last_live_timestamp = time.time()  # Обновляем при любом сообщении
+        self.last_live_timestamp = time.time()  # Update on any message
         return json.loads(msg.data)
 
     async def get_connection_id(self):
         return await self.receive_message()
 
     async def action_extension(self, browser_id: str, user_id: str):
-        # Получаем сообщение от сервера
+        # Get message from server
         received_message = await self.get_connection_id()
         message_id = received_message.get("id")
         action = received_message.get("action")
@@ -171,7 +171,7 @@ class GrassWs:
                 "origin_action": action,
                 "result": result
             }
-            response_str = json.dumps(response, separators=(',', ':'))  # Удаляем лишние пробелы
+            response_str = json.dumps(response, separators=(',', ':'))  # Remove extra spaces
             # print(f"[WEBSOCKET] Sent response: {json.dumps(response, indent=2)}")
             await self.send_message(response_str)
         elif action == "PONG":
@@ -179,7 +179,7 @@ class GrassWs:
                 "id": message_id,
                 "origin_action": action
             }
-            response_str = json.dumps(response, separators=(',', ':'))  # Удаляем лишние пробелы
+            response_str = json.dumps(response, separators=(',', ':'))  # Remove extra spaces
             # print(f"[WEBSOCKET] Received PONG, sending response: {json.dumps(response, indent=2)}")
             await self.send_message(response_str)
 
@@ -198,12 +198,12 @@ class GrassWs:
                     proxy=self.proxy,
                     ssl=False
             ) as response:
-                # Получаем статус и заголовки
+                # Get status and headers
                 status = response.status
                 status_text = response.reason
                 headers_dict = dict(response.headers)
 
-                # Получаем тело ответа и кодируем в base64
+                # Get response body and encode to base64
                 body_bytes = await response.read()
                 body_base64 = b64encode(body_bytes).decode('utf-8')
 
@@ -231,7 +231,7 @@ class GrassWs:
             "action": "PING",
             "data": {}
         }
-        message_str = json.dumps(message, separators=(',', ':'))  # Удаляем лишние пробелы
+        message_str = json.dumps(message, separators=(',', ':'))  # Remove extra spaces
         # print(f"[WEBSOCKET] Sent PING at {time.strftime('%H:%M:%S')}")
         await self.send_message(message_str)
 

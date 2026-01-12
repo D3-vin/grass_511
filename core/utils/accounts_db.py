@@ -62,7 +62,7 @@ class AccountsDB:
                 await self.connection.commit()
 
     async def save_auth_token(self, email, token):
-        """Сохраняет токен авторизации для указанного email"""
+        """Saves authorization token for specified email"""
         async with self.db_lock:
             await self.cursor.execute(
                 "INSERT OR REPLACE INTO AuthTokens(email, token, updated_at) VALUES(?, ?, CURRENT_TIMESTAMP)", 
@@ -71,7 +71,7 @@ class AccountsDB:
             await self.connection.commit()
     
     async def get_auth_token(self, email):
-        """Получает сохраненный токен авторизации для указанного email"""
+        """Gets saved authorization token for specified email"""
         async with self.db_lock:
             await self.cursor.execute("SELECT token FROM AuthTokens WHERE email=?", (email,))
             result = await self.cursor.fetchone()
@@ -109,7 +109,7 @@ class AccountsDB:
             except Exception as e:
                 from core.utils import logger
                 logger.error(f"Error updating points: {e} (user_id: {user_id}, type: {type(user_id)})")
-                # Продолжаем выполнение даже при ошибке
+                # Continue execution even on error
 
     async def get_total_points(self):
         async with self.db_lock:

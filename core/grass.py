@@ -7,7 +7,7 @@ import aiohttp
 from fake_useragent import UserAgent
 from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wait_random, retry_if_exception_type
 
-from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, NODE_TYPE
+from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN
 
 try:
     from data.config import SHOW_LOGS_RARELY
@@ -35,10 +35,10 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         self.proxy = Proxy.from_str(proxy).as_url if proxy else None
         user_agent = user_agent or str(UserAgent(platforms=['desktop']).random)
 
-        # Сохраняем node_type и передаем его в родительские классы
+        # Store node_type and pass it to parent classes
         self.node_type = node_type
 
-        # Корректно инициализируем оба родительских класса
+        # Properly initialize both parent classes
         GrassWs.__init__(self, user_agent=user_agent, proxy=self.proxy, node_type=self.node_type)
         GrassRest.__init__(self, email=email, password=password, user_agent=user_agent, proxy=self.proxy, db=db, tokens_db=tokens_db)
         FailureCounter.__init__(self)
@@ -115,7 +115,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
     async def run(self, browser_id: str, user_id: str):
         while True:
             try:
-                # Получаем адрес и токен
+                # Get address and token
                 try:
                     destination, token = await self.get_addr(browser_id, user_id)
                     if not destination:

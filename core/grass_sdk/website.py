@@ -11,7 +11,11 @@ from core.utils import logger
 from core.utils.exception import LoginException, ProxyBlockedException, CloudFlareHtmlException, ProxyScoreNotFoundException
 from core.utils.session import BaseClient
 from core.utils.captcha import ServiceCapmonster, ServiceAnticaptcha, Service2Captcha, CFLSolver
-from data.config import CAPTCHA_SERVICE, CAPTCHA_API_KEY, CAPTCHA_WEBSITE_KEY, CAPTCHA_WEBSITE_URL, CFLSOLVER_BASE_URL
+from data.config import CAPTCHA_SERVICE, CAPTCHA_API_KEY, CFLSOLVER_BASE_URL
+
+# Static captcha settings for Grass
+CAPTCHA_WEBSITE_KEY = "0x4AAAAAABlfL-m2jw53nwb9"
+CAPTCHA_WEBSITE_URL = "https://app.grass.io/login"
 from httpx import AsyncClient
 
 
@@ -22,40 +26,114 @@ class GrassRest(BaseClient):
         self.password = password
         self.id = None
         self.db = db
-        self.tokens_db = tokens_db  # Добавляем поле для базы данных токенов
+        self.tokens_db = tokens_db  # Token database field
 
     async def enter_account(self):
-        # Получаем сохранённый токен из базы
-        token = None
+        """Login to account with refresh token support"""
         if self.tokens_db:
+            # Try to use saved access token
             token = await self.tokens_db.get_token(self.email)
-        if token:
-            # Просто используем токен, не проверяем валидность
-            self.website_headers['Authorization'] = token
-            # Получаем user_id через retrieve_user (без логина)
+            if token:
+                self.website_headers['Authorization'] = token
+                user_id = await self._get_user_id_from_response()
+                if user_id:
+                    return user_id
+                
+                # Access token invalid — try refresh
+                user_id = await self._try_refresh_token()
+                if user_id:
+                    return user_id
+        
+        # Refresh failed or no tokens — full login
+        return await self._full_login()
+    
+    async def _get_user_id_from_response(self):
+        """Extracts user_id from retrieve_user response"""
+        try:
             user_info = await self.retrieve_user()
-            user_id = None
-            if user_info and not user_info.get('error'):
-                if user_info.get('data', {}).get('userId'):
-                    user_id = user_info['data']['userId']
-                elif user_info.get('result', {}).get('data', {}).get('userId'):
-                    user_id = user_info['result']['data']['userId']
-                elif user_info.get('data', {}).get('id'):
-                    user_id = user_info['data']['id']
-                elif user_info.get('result', {}).get('data', {}).get('id'):
-                    user_id = user_info['result']['data']['id']
-            return user_id
-        # Если токена нет — логинимся
+            if not user_info:
+                return None
+            if user_info.get('error'):
+                return None
+            
+            # Try different response structures
+            data = user_info.get('data') or {}
+            if not data:
+                data = user_info.get('result', {}).get('data') or {}
+            
+            return data.get('userId') or data.get('id')
+        except Exception as e:
+            logger.debug(f"{self.email} | _get_user_id_from_response error: {e}")
+            return None
+    
+    async def _try_refresh_token(self):
+        """Tries to update access token via refresh token"""
+        if not self.tokens_db:
+            return None
+        
+        refresh_token = await self.tokens_db.get_refresh_token(self.email)
+        if not refresh_token:
+            return None
+        
+        try:
+            new_tokens = await self.refresh_access_token(refresh_token)
+            if new_tokens:
+                access_token = new_tokens.get('accessToken')
+                new_refresh = new_tokens.get('refreshToken')
+                
+                self.website_headers['Authorization'] = access_token
+                await self.tokens_db.save_token(self.email, access_token)
+                if new_refresh:
+                    await self.tokens_db.save_refresh_token(self.email, new_refresh)
+                
+                return await self._get_user_id_from_response()
+        except Exception as e:
+            logger.warning(f"{self.email} | Refresh token failed: {e}")
+        
+        return None
+    
+    async def _full_login(self):
+        """Full login with saving both tokens"""
         res_json = await self.handle_login()
-        token = res_json['result']['data']['accessToken']
-        self.website_headers['Authorization'] = token
-        user_id = res_json['result']['data']['userId']
+        data = res_json['result']['data']
+        
+        access_token = data['accessToken']
+        refresh_token = data.get('refreshToken')
+        user_id = data['userId']
+        
+        self.website_headers['Authorization'] = access_token
+        
         if self.tokens_db:
-            await self.tokens_db.save_token(self.email, token)
+            await self.tokens_db.save_token(self.email, access_token)
+            if refresh_token:
+                await self.tokens_db.save_refresh_token(self.email, refresh_token)
+        
         return user_id
+    
+    async def refresh_access_token(self, refresh_token):
+        """Updates access token using refresh token"""
+        url = 'https://api.grass.io/refreshToken'
+        
+        json_data = {'refreshToken': refresh_token}
+        
+        response = await self.session.post(
+            url, 
+            headers=self.website_headers, 
+            data=json.dumps(json_data),
+            proxy=self.proxy
+        )
+        
+        if response.status != 200:
+            return None
+        
+        res_json = await response.json()
+        if res_json.get('error'):
+            return None
+        
+        return res_json.get('result', {}).get('data')
 
     async def is_token_valid(self, token):
-        """Проверяет, действителен ли токен авторизации"""
+        """Checks if authorization token is valid"""
         original_token = self.website_headers.get('Authorization')
         self.website_headers['Authorization'] = token
         
@@ -65,11 +143,11 @@ class GrassRest(BaseClient):
         except Exception:
             valid = False
         
-        # Восстанавливаем оригинальный токен, если он был
+        # Restore original token if it existed
         if original_token:
             self.website_headers['Authorization'] = original_token
         elif valid is False:
-            # Удаляем недействительный токен из заголовков
+            # Remove invalid token from headers
             self.website_headers.pop('Authorization', None)
             
         return valid
@@ -152,7 +230,7 @@ class GrassRest(BaseClient):
     async def login(self):
         url = 'https://api.grass.io/login'
 
-        # Получаем токен капчи согласно настройкам
+        # Get captcha token according to settings
         if CAPTCHA_SERVICE == "capmonster":
             cap_service = ServiceCapmonster(api_key=CAPTCHA_API_KEY, website_key=CAPTCHA_WEBSITE_KEY, website_url=CAPTCHA_WEBSITE_URL)
             token = await cap_service.solve_captcha()
@@ -191,9 +269,9 @@ class GrassRest(BaseClient):
         #resp_text = await response.text()
 
         if response.status == 429:
-            # Обработка ограничения частоты запросов
+            # Handle rate limiting
             retry_after = response.headers.get("Retry-After")
-            retry_after = int(retry_after) if retry_after and retry_after.isdigit() else 5  # 5 секунд по умолчанию
+            retry_after = int(retry_after) if retry_after and retry_after.isdigit() else 5  # 5 seconds default
             logger.warning(f"{self.id} | Detected Cloudflare Rate limited. Retrying after {retry_after} seconds...")
             await asyncio.sleep(retry_after)
         # Check if the response is HTML
@@ -283,3 +361,55 @@ class GrassRest(BaseClient):
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 
         return await response.json()
+
+    # === Wallet methods ===
+    
+    async def approve_wallet(self, signed_message, public_key, wallet_address, timestamp):
+        """Confirms wallet linking with signed message"""
+        url = 'https://api.grass.io/verifySignedMessage'
+        
+        json_data = {
+            'signedMessage': signed_message,
+            'publicKey': public_key,
+            'walletAddress': wallet_address,
+            'timestamp': timestamp,
+            'isLedger': False,
+            'isAfterCountdown': True
+        }
+        
+        response = await self.session.post(
+            url, 
+            headers=self.website_headers, 
+            data=json.dumps(json_data),
+            proxy=self.proxy
+        )
+        return await response.json()
+    
+    async def send_wallet_email_verification(self):
+        """Sends email for wallet linking verification"""
+        url = 'https://api.grass.io/sendWalletAddressEmailVerification'
+        
+        response = await self.session.post(
+            url, 
+            headers=self.website_headers,
+            proxy=self.proxy
+        )
+        return await response.json()
+    
+    async def confirm_wallet_address(self, verification_token):
+        """Confirms wallet address with token from email"""
+        url = 'https://api.grass.io/confirmWalletAddress'
+        
+        headers = self.website_headers.copy()
+        headers['Authorization'] = verification_token
+        
+        response = await self.session.post(url, headers=headers, proxy=self.proxy)
+        return await response.json()
+    
+    async def get_linked_wallet(self):
+        """Gets linked wallet from user data"""
+        user_info = await self.retrieve_user()
+        if user_info and not user_info.get('error'):
+            data = user_info.get('result', {}).get('data', {})
+            return data.get('walletAddress')
+        return None

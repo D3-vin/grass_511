@@ -1,4 +1,4 @@
-## 🔹Grass Auto Farm mod 5.5.1🔹
+## 🔹Grass Auto Farm mod 6.1.3🔹
 
 <div align="center">
   <p align="center">
@@ -24,6 +24,7 @@
    - Farm Points in 1x or 1.25x modes
    - Claim Rewards
    - Check Points
+   - **🆕 Link Solana Wallets** - mass wallet linking with email verification
 
 > You can put as many proxies as u can, bot uses database and will load up proxies from extra ones
 
@@ -37,6 +38,8 @@ To hang several connections on 1 account, you just need to duplicate it in the a
       - Farm 1.25x - farming points with 1.25x multiplier
       - Farm 1x - farming points with 1x multiplier
       - Claim rewards - only claim available rewards
+      - Login only - update tokens without farming
+      - **Link wallets** - link Solana wallets to accounts
       - Exit - close the application
 
 ### Options 📧
@@ -56,4 +59,52 @@ To hang several connections on 1 account, you just need to duplicate it in the a
 2. Proxy Setup 🔒
 
    Configure your proxies with the *ANY* (socks, http/s, ...) format in `data/proxies.txt` 🌐
+
+## 🔗 Wallet Linking (NEW)
+
+Link Solana wallets to your Grass accounts with automatic email verification.
+
+### Setup
+
+1. **Wallets** - Put your Solana private keys in `data/wallets.txt` (one per line)
+
+2. **Accounts for linking** - Put accounts in `data/acc_to_link_wallet.txt` in format:
+   ```
+   email:password:imap_password
+   ```
+   > Note: `imap_password` can contain `:` characters
+
+3. **IMAP Configuration** - Configure email servers in `data/email_config.yaml`:
+   ```yaml
+   imap_settings:
+     use_proxy_for_imap: false  # Set true to use proxy for IMAP
+   
+   servers:
+     gmail.com: imap.gmail.com
+     outlook.com: imap-mail.outlook.com
+     # Add your email domains here
+   ```
+
+### How it works
+
+1. Bot logs into account using saved token or performs full login
+2. Checks if wallet is already linked
+3. Signs message with Solana private key
+4. Sends wallet linking request to Grass API
+5. Sends verification email request
+6. Reads confirmation link from email via IMAP
+7. Confirms wallet address
+
+### Supported Email Providers
+
+- Gmail, Yahoo, iCloud
+- Mail.ru, GMX
+- Onet.pl, Gazeta.pl
+- Custom IMAP servers (add to config)
+
+### Requirements
+
+- Accounts must be logged in first (run "Login only" mode)
+- Valid IMAP credentials for email verification
+- One wallet per account (duplicates are checked)
 

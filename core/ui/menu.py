@@ -10,7 +10,7 @@ class MenuManager:
         self.console = Console()
     
     def display_welcome(self):
-        """Отображает приветственный экран с логотипом."""
+        """Display welcome screen with logo."""
         self.console.clear()
         
         combined_text = Text()
@@ -21,12 +21,12 @@ class MenuManager:
         combined_text.append("\n📁 GitHub: ", style="bold white")
         combined_text.append("https://github.com/D3-vin", style="cyan")
         combined_text.append("\n📁 Version: ", style="bold white")
-        combined_text.append("5.5.1", style="green")
+        combined_text.append("6.1.3", style="green")
         combined_text.append("\n")
 
         info_panel = Panel(
             Align.left(combined_text),
-            title="[bold blue]Grass Auto Farm mod 5.5.1[/bold blue]",
+            title="[bold blue]Grass Auto Farm[/bold blue]",
             subtitle="[bold magenta]Dev by D3vin[/bold magenta]",
             box=box.ROUNDED,
             border_style="bright_blue",
@@ -38,14 +38,15 @@ class MenuManager:
         self.console.print()
     
     def show_menu(self):
-        """Отображает главное меню выбора режима."""
+        """Display main menu."""
         menu_text = Text()
         menu_text.append("Choose mode:", style="bold cyan")
         menu_text.append("\n1) Farm 1.25x", style="light_green")
         menu_text.append("\n2) Farm 1x", style="light_green")
         menu_text.append("\n3) Claim rewards", style="light_yellow")
         menu_text.append("\n4) Login only (update tokens)", style="light_blue")
-        menu_text.append("\n5) Exit", style="light_red")
+        menu_text.append("\n5) Link wallets", style="light_magenta")
+        menu_text.append("\n6) Exit", style="light_red")
 
         menu_panel = Panel(
             Align.left(menu_text),
@@ -60,18 +61,18 @@ class MenuManager:
         
         while True:
             try:
-                choice = int(self.console.input("\n[bold cyan]Enter the number (1-5): [/bold cyan]"))
-                if 1 <= choice <= 5:
+                choice = int(self.console.input("\n[bold cyan]Enter the number (1-6): [/bold cyan]"))
+                if 1 <= choice <= 6:
                     return choice
                 else:
-                    self.console.print("[bold red]Error: enter a number from 1 to 5[/bold red]")
+                    self.console.print("[bold red]Error: enter a number from 1 to 6[/bold red]")
             except ValueError:
-                self.console.print("[bold red]Error: enter a number from 1 to 5[/bold red]")
+                self.console.print("[bold red]Error: enter a number from 1 to 6[/bold red]")
     
     def show_mode_selected(self, mode_name: str):
-        """Отображает выбранный режим."""
+        """Display selected mode."""
         self.console.print(f"\n[bold green]Selected mode: {mode_name}[/bold green]")
     
     def show_exit_message(self):
-        """Отображает сообщение о выходе."""
+        """Display exit message."""
         self.console.print("[bold red]Exiting program[/bold red]")

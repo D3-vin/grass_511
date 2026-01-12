@@ -10,7 +10,7 @@ def file_to_list(
 
 
 def str_to_file(file_name: str, msg: str, mode: Optional[str] = "a"):
-    # Создаем директорию если её нет
+    # Create directory if it doesn't exist
     directory = os.path.dirname(file_name)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
@@ -34,8 +34,8 @@ def shift_file(file):
 
 def remove_duplicate_accounts(accounts_list):
     """
-    Удаляет дубликаты аккаунтов из списка
-    Дубликаты определяются по email (часть до :)
+    Removes duplicate accounts from list
+    Duplicates are determined by email (part before :)
     """
     unique_accounts = {}
     for account in accounts_list:
@@ -44,8 +44,8 @@ def remove_duplicate_accounts(accounts_list):
             if email not in unique_accounts:
                 unique_accounts[email] = account
         except:
-            # Пропускаем некорректно форматированные строки
+            # Skip incorrectly formatted lines
             pass
 
-    # Возвращаем список уникальных аккаунтов
+    # Return list of unique accounts
     return list(unique_accounts.values())

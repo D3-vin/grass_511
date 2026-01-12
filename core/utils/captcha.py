@@ -83,15 +83,15 @@ class CFLSolver:
         self.cdata = cdata
 
     async def create_session(self) -> AsyncSession:
-        """Создает сессию для прямого подключения"""
+        """Creates session for direct connection"""
         from curl_cffi.requests import AsyncSession
         return AsyncSession()
 
     async def create_turnstile_task(self, session: AsyncSession, sitekey: str, pageurl: str, action: Optional[str] = None, cdata: Optional[str] = None) -> Optional[str]:
-        """Создает задачу для решения Turnstile капчи с использованием CapMonster API"""
+        """Creates task for solving Turnstile captcha using CapMonster API"""
         import json
         
-        # Данные для запроса к CapMonster
+        # Request data for CapMonster
         json_data = {
             "clientKey": self.api_key,
             "task": {
@@ -101,7 +101,7 @@ class CFLSolver:
             }
         }
         
-        # Добавляем дополнительные параметры если они есть
+        # Add additional parameters if present
         if action:
             json_data["task"]["action"] = action
         if cdata:
@@ -122,11 +122,11 @@ class CFLSolver:
             except ValueError:
                 return None
 
-            # Проверяем что result не None
+            # Check that result is not None
             if result is None:
                 return None
 
-            # Проверяем на ошибки API
+            # Check for API errors
             if result.get("errorId") != 0:
                 return None
                 
@@ -140,10 +140,10 @@ class CFLSolver:
             return None
 
     async def get_task_result(self, session: AsyncSession, task_id: str) -> Optional[str]:
-        """Получает результат решения капчи с CapMonster API"""
+        """Gets captcha solution result from CapMonster API"""
         import json
         
-        max_attempts = 60  # Увеличиваем время ожидания до 60 попыток
+        max_attempts = 60  # Increase wait time to 60 attempts
         
         json_data = {
             "clientKey": self.api_key,
@@ -168,28 +168,28 @@ class CFLSolver:
                     await asyncio.sleep(2)
                     continue
 
-                # Проверяем что result не None
+                # Check that result is not None
                 if result is None:
                     await asyncio.sleep(2)
                     continue
 
-                # Проверяем статус обработки
+                # Check processing status
                 if result.get("status") == "processing":
                     await asyncio.sleep(5)
                     continue
 
-                # Проверяем на ошибки API
+                # Check for API errors
                 if result.get("errorId") != 0:
                     return None
 
-                # Проверяем готовность решения
+                # Check if solution is ready
                 if result.get("status") == "ready" and result.get("solution"):
                     solution = result["solution"].get("token")
                     
                     if solution and re.match(r'^[a-zA-Z0-9\.\-_]+$', solution):
                         return solution
 
-                # Если решение еще не готово, ждем
+                # If solution not ready yet, wait
                 await asyncio.sleep(5)
                 continue
 
@@ -200,8 +200,8 @@ class CFLSolver:
         return None
 
     async def solve_captcha(self, session: AsyncSession, action: Optional[str] = None, cdata: Optional[str] = None) -> Optional[str]:
-        """Решает Cloudflare Turnstile капчу и возвращает токен используя CapMonster API"""
-        # Используем переданные параметры или значения по умолчанию из конструктора
+        """Solves Cloudflare Turnstile captcha and returns token using CapMonster API"""
+        # Use passed parameters or default values from constructor
         action_to_use = action if action is not None else self.action
         cdata_to_use = cdata if cdata is not None else self.cdata
         
@@ -218,12 +218,12 @@ class CFLSolver:
 
         return await self.get_task_result(session, task_id)
 
-    # Добавляем алиас для совместимости
+    # Add alias for compatibility
     async def get_captcha_token_async(self, session: AsyncSession, action: Optional[str] = None, cdata: Optional[str] = None):
         return await self.solve_captcha(session, action, cdata)
 
     async def solve_captcha_auto(self, action: Optional[str] = None, cdata: Optional[str] = None) -> Optional[str]:
-        """Автоматически создает сессию и решает капчу"""
+        """Automatically creates session and solves captcha"""
         session = await self.create_session()
         try:
             return await self.solve_captcha(session, action, cdata)
