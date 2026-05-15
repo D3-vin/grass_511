@@ -20,7 +20,7 @@ from core.utils.solana_wallet import SolanaWallet, load_wallets
 from core.utils.imap_client import find_wallet_confirmation_link, check_imap_login, is_domain_supported
 from core.ui.menu import MenuManager
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, THREADS, AUTH_THREADS, \
-    CLAIM_REWARDS_ONLY, MINING_MODE, \
+    CLAIM_REWARDS_ONLY, MINING_MODE, NODE_TYPE, \
     PROXY_DB_PATH, TOKENS_DB_PATH, MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, \
     SHOW_LOGS_RARELY, WALLETS_FILE_PATH, ACCOUNTS_TO_LINK_PATH
 
@@ -348,11 +348,13 @@ async def main():
     elif choice == 3:  # Claim rewards
         MINING_MODE = False
         CLAIM_REWARDS_ONLY = True
+        NODE_TYPE = "1_25x"
         menu_manager.show_mode_selected("Claim rewards")
     elif choice == 4:  # Login only
         MINING_MODE = False
         CLAIM_REWARDS_ONLY = False
         LOGIN_ONLY_MODE = True
+        NODE_TYPE = "1_25x"
         menu_manager.show_mode_selected("Login only (update tokens)")
     elif choice == 5:  # Link wallets
         MINING_MODE = False
