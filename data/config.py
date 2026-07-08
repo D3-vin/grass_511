@@ -4,6 +4,8 @@ CAPTCHA_API_KEY = "api"  # API key for the service
 
 CFLSOLVER_BASE_URL = "http://localhost"  # URL for local CFLSolver API
 
+DEBUG_LOGS = False
+
 THREADS = 5  # for claim rewards mode / approve email mode
 AUTH_THREADS = 2  # thread limit for authorization (login only mode)
 MIN_PROXY_SCORE = 50  # Put MIN_PROXY_SCORE = 0 not to check proxy score (if site is down)

@@ -46,7 +46,8 @@ class MenuManager:
         menu_text.append("\n3) Claim rewards", style="light_yellow")
         menu_text.append("\n4) Login only (update tokens)", style="light_blue")
         menu_text.append("\n5) Link wallets", style="light_magenta")
-        menu_text.append("\n6) Exit", style="light_red")
+        menu_text.append("\n6) Check airdrop allocation", style="light_yellow")
+        menu_text.append("\n7) Exit", style="light_red")
 
         menu_panel = Panel(
             Align.left(menu_text),
@@ -61,13 +62,13 @@ class MenuManager:
         
         while True:
             try:
-                choice = int(self.console.input("\n[bold cyan]Enter the number (1-6): [/bold cyan]"))
-                if 1 <= choice <= 6:
+                choice = int(self.console.input("\n[bold cyan]Enter the number (1-7): [/bold cyan]"))
+                if 1 <= choice <= 7:
                     return choice
                 else:
-                    self.console.print("[bold red]Error: enter a number from 1 to 6[/bold red]")
+                    self.console.print("[bold red]Error: enter a number from 1 to 7[/bold red]")
             except ValueError:
-                self.console.print("[bold red]Error: enter a number from 1 to 6[/bold red]")
+                self.console.print("[bold red]Error: enter a number from 1 to 7[/bold red]")
     
     def show_mode_selected(self, mode_name: str):
         """Display selected mode."""

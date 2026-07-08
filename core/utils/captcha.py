@@ -7,6 +7,8 @@ from httpx import AsyncClient
 from curl_cffi.requests import AsyncSession
 from data.config import CFLSOLVER_BASE_URL
 from anticaptchaofficial.turnstileproxyless import *
+from data.config import DEBUG_LOGS
+from core.utils import logger
 
 class ServiceCapmonster:
     def __init__(self, api_key, website_key, website_url):
@@ -36,6 +38,11 @@ class ServiceAnticaptcha:
     
     def get_captcha_token(self):
         captcha_token = self.solver.solve_and_return_solution()
+        if not captcha_token:
+            code = getattr(self.solver, "error_code", None)
+            desc = getattr(self.solver, "error_description", None)
+            details = f"{code} | {desc}" if code or desc else "unknown anticaptcha error"
+            raise RuntimeError(f"anticaptcha: failed to solve turnstile ({details})")
         return captcha_token
 
     async def get_captcha_token_async(self):
@@ -115,11 +122,17 @@ class CFLSolver:
             )
             
             if response.status_code != 200:
+                if DEBUG_LOGS:
+                    body = getattr(response, "text", "")
+                    logger.warning(f"solver createTask http={response.status_code} body={str(body)[:800]}")
                 return None
                 
             try:
                 result = response.json()
             except ValueError:
+                if DEBUG_LOGS:
+                    body = getattr(response, "text", "")
+                    logger.warning(f"solver createTask invalid json body={str(body)[:800]}")
                 return None
 
             # Check that result is not None
@@ -128,6 +141,8 @@ class CFLSolver:
 
             # Check for API errors
             if result.get("errorId") != 0:
+                if DEBUG_LOGS:
+                    logger.warning(f"solver createTask error: {str(result)[:800]}")
                 return None
                 
             if "taskId" in result:
@@ -137,6 +152,8 @@ class CFLSolver:
             return None
 
         except Exception:
+            if DEBUG_LOGS:
+                logger.exception("solver createTask exception")
             return None
 
     async def get_task_result(self, session: AsyncSession, task_id: str) -> Optional[str]:
@@ -159,12 +176,18 @@ class CFLSolver:
                 )
 
                 if response.status_code != 200:
+                    if DEBUG_LOGS:
+                        body = getattr(response, "text", "")
+                        logger.warning(f"solver getTaskResult http={response.status_code} body={str(body)[:800]}")
                     await asyncio.sleep(2)
                     continue
 
                 try:
                     result = response.json()
                 except ValueError:
+                    if DEBUG_LOGS:
+                        body = getattr(response, "text", "")
+                        logger.warning(f"solver getTaskResult invalid json body={str(body)[:800]}")
                     await asyncio.sleep(2)
                     continue
 
@@ -180,6 +203,8 @@ class CFLSolver:
 
                 # Check for API errors
                 if result.get("errorId") != 0:
+                    if DEBUG_LOGS:
+                        logger.warning(f"solver getTaskResult error: {str(result)[:800]}")
                     return None
 
                 # Check if solution is ready
@@ -194,6 +219,8 @@ class CFLSolver:
                 continue
 
             except Exception:
+                if DEBUG_LOGS:
+                    logger.exception("solver getTaskResult exception")
                 await asyncio.sleep(2)
                 continue
 

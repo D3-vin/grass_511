@@ -29,11 +29,17 @@ ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 # Global mode variables
 LOGIN_ONLY_MODE = False
 LINK_WALLETS_MODE = False
+CHECK_AIRDROP_MODE = False
 
 
 def bot_info(name: str = ""):
     if sys.platform == 'win32':
         ctypes.windll.kernel32.SetConsoleTitleW(f"{name}")
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
     
     # Create menu manager and display welcome
     menu_manager = MenuManager()
@@ -283,6 +289,18 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
             
         # Set token manually
         grass.website_headers['Authorization'] = token
+
+        # Airdrop allocation check mode
+        if CHECK_AIRDROP_MODE:
+            allocation = await grass.get_airdrop_stats_handler()
+            if isinstance(allocation, (int, float)):
+                msg = f"{email} | Allocation: {float(allocation):.6f}"
+                str_to_file("results/airdrop.txt", msg)
+                logger.success(f"{_id} | {email} | airdrop allocation={float(allocation):.6f}")
+                return True
+            else:
+                logger.warning(f"{_id} | {email} | Can't get allocation: {allocation}")
+                return False
         
         # Get user_id via retrieve_user
         user_info = await grass.retrieve_user()
@@ -329,11 +347,12 @@ async def main():
     # Create menu manager instance
     menu_manager = MenuManager()
     choice = menu_manager.show_menu()
-    global MINING_MODE, CLAIM_REWARDS_ONLY, NODE_TYPE, LOGIN_ONLY_MODE, LINK_WALLETS_MODE
+    global MINING_MODE, CLAIM_REWARDS_ONLY, NODE_TYPE, LOGIN_ONLY_MODE, LINK_WALLETS_MODE, CHECK_AIRDROP_MODE
     
     # Modes disabled by default
     LOGIN_ONLY_MODE = False
     LINK_WALLETS_MODE = False
+    CHECK_AIRDROP_MODE = False
 
     if choice == 1:  # Farm 1.25x
         MINING_MODE = True
@@ -361,7 +380,13 @@ async def main():
         CLAIM_REWARDS_ONLY = False
         LINK_WALLETS_MODE = True
         menu_manager.show_mode_selected("Link wallets")
-    elif choice == 6:  # Exit
+    elif choice == 6:  # Check airdrop allocation
+        MINING_MODE = False
+        CLAIM_REWARDS_ONLY = False
+        CHECK_AIRDROP_MODE = True
+        NODE_TYPE = "1_25x"
+        menu_manager.show_mode_selected("Check airdrop allocation")
+    elif choice == 7:  # Exit
         menu_manager.show_exit_message()
         return
 
@@ -463,12 +488,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        bot_info("GRASS   6.1.3")
-        loop = asyncio.ProactorEventLoop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
-    else:
+    try:
+        if sys.platform == 'win32':
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         bot_info("GRASS   6.1.3")
         asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.warning("Program stopped by user (Ctrl+C)")

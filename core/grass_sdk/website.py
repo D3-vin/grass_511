@@ -215,6 +215,33 @@ class GrassRest(BaseClient):
         else:
             return "Can't get points."
 
+    async def get_airdrop_stats_handler(self):
+        handler = retry(
+            stop=stop_after_attempt(3),
+            before_sleep=lambda retry_state, **kwargs: logger.info(
+                f"{self.id} | Retrying to get airdrop allocation... Continue..."
+            ),
+            wait=wait_random(5, 7),
+            reraise=True
+        )
+
+        return await handler(self.get_airdrop_allocation)()
+
+    async def get_airdrop_allocation(self):
+        url = 'https://api.grass.io/airdropStats'
+
+        response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
+        res_json = await response.json()
+
+        stats = res_json.get('result', {}).get('data', {}).get('stats', {}) if isinstance(res_json, dict) else {}
+        allocation = stats.get('allocation')
+
+        if allocation is not None:
+            return allocation
+
+        err_msg = res_json.get('error', {}).get('message') if isinstance(res_json, dict) else None
+        return err_msg or "Can't get airdrop allocation."
+
     async def handle_login(self):
         handler = retry(
             stop=stop_after_attempt(12),
@@ -250,6 +277,9 @@ class GrassRest(BaseClient):
             token = await cap_service.solve_captcha_auto()
         else:
             raise Exception(f"Unknown CAPTCHA_SERVICE: {CAPTCHA_SERVICE}")
+        
+        if not token:
+            raise LoginException(f"{self.email} | Captcha token is empty (service={CAPTCHA_SERVICE})")
 
         json_data = {
             'password': self.password,
