@@ -1,5 +1,7 @@
 ## 🔹Grass Auto Farm mod 6.1.3🔹
 
+> **Based on [MsLolita/grass](https://github.com/MsLolita/grass)** — heavily modified fork: wallet-linking automation, IMAP email verification, extended config system.
+
 <div align="center">
   <p align="center">
     <a href="https://t.me/D3_vin">
@@ -108,3 +110,12 @@ Link Solana wallets to your Grass accounts with automatic email verification.
 - Valid IMAP credentials for email verification
 - One wallet per account (duplicates are checked)
 
+## ⚠️ Disclaimer
+
+This project is provided **for educational and research purposes only**, "AS IS", without warranty of any kind.
+
+- The author is **not responsible** for any consequences of use — responsibility lies entirely with the end user.
+- By using this software you agree to the Terms of Service of the respective services and the laws of your country.
+- Based on [MsLolita/grass](https://github.com/MsLolita/grass) (no license specified upstream); this fork is published for educational purposes. All trademarks belong to their owners.
+
+> ПО предоставляется исключительно в образовательных и ознакомительных целях, «как есть», без гарантий. Автор не несёт ответственности за использование — ответственность на конечном пользователе.
